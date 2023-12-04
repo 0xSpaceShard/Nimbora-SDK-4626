@@ -37,9 +37,9 @@ mod BatchComponent {
         /// amount of participants to handle batch
         Batch_participant_required: u256,
         /// Current Batch Counter
-        Batch_counter: felt252,
+        Batch_counter: u256,
         /// Last Handled Batch Counter
-        Batch_handled_counter: felt252,
+        Batch_handled_counter: u256,
         /// Current Participants in the batch
         Batch_participant_counter: u256,
     }
@@ -98,6 +98,8 @@ mod BatchComponent {
         const ZERO_AMOUNT_PARTICIPANT_REQUIRED: felt252 = 'Participant required is zero';
         const INVALID_PARTICPIANT_REQUIRED: felt252 = 'Participant required too low';
         const INVALID_PARTICIPANT_PAY_AMOUNT: felt252 = 'Participant pay amount too big';
+        const SEQUENTIAL_EXECUTION: felt252 = 'Nonce handled is invalid';
+        const BATCH_NOT_HANDLED: felt252 = 'Batch has not been handled';
     }
 
     //
@@ -139,11 +141,11 @@ mod BatchComponent {
             self.Batch_participant_required.read()
         }
 
-        fn counter(self: @ComponentState<TContractState>) -> felt252 {
+        fn counter(self: @ComponentState<TContractState>) -> u256 {
             self.Batch_counter.read()
         }
 
-        fn handled_counter(self: @ComponentState<TContractState>) -> felt252 {
+        fn handled_counter(self: @ComponentState<TContractState>) -> u256 {
             self.Batch_handled_counter.read()
         }
 
@@ -234,6 +236,7 @@ mod BatchComponent {
             self._set_gas_oracle_selector(gas_oracle_selector);
             self._set_gas_required(gas_required);
             self._set_participant_required(participant_required);
+            self.Batch_counter.write(1);
         }
 
         fn assert_only_relayer(self: @ComponentState<TContractState>) {
@@ -322,8 +325,7 @@ mod BatchComponent {
         }
 
 
-        fn _charge_user(ref self: ComponentState<TContractState>, participant_pay_amount: u256) {
-            let caller: ContractAddress = get_caller_address();
+        fn _charge_user(ref self: ComponentState<TContractState>, caller: ContractAddress, participant_pay_amount: u256) -> (u256, bool) {
             assert(!caller.is_zero(), Errors::ZERO_ADDRESS_CALLER);
             let remaing_participant_to_close_batch = self._remaing_participant_to_close_batch();
             assert(participant_pay_amount <= remaing_participant_to_close_batch, Errors::INVALID_PARTICIPANT_PAY_AMOUNT);
@@ -331,16 +333,33 @@ mod BatchComponent {
             let amount_to_pay = gas_fee_required_per_participant * participant_pay_amount;
             let gas_token = self.Batch_gas_token.read();
             let fees_collector = self.Batch_fees_collector.read();
-            gas_token.transferFrom(caller, fees_collector, amount_to_pay);            
+            gas_token.transferFrom(caller, fees_collector, amount_to_pay);
+            let current_counter = self.Batch_counter.read();            
             if remaing_participant_to_close_batch == participant_pay_amount {
-                self._close_batch()
+                self.Batch_participant_counter.write(0);
+                self.Batch_counter.write(current_counter + 1);
+                (current_counter, true)
+            } else {
+                (current_counter, false)
             }
         }
 
-        fn _close_batch(ref self: ComponentState<TContractState>) {
+        fn _close_batch_force(ref self: ComponentState<TContractState>) -> u256 {
             self.Batch_participant_counter.write(0);
             let current_counter = self.Batch_counter.read();
             self.Batch_counter.write(current_counter + 1);
+            current_counter
+        }
+
+        fn _handle_nonce(ref self: ComponentState<TContractState>, nonce: u256) {
+            let handled_counter = self.Batch_handled_counter.read();
+            assert(nonce == handled_counter + 1, Errors::SEQUENTIAL_EXECUTION);
+            self.Batch_handled_counter.write(nonce);
+        }
+
+        fn assert_batch_handled(self: @ComponentState<TContractState>, nonce: u256) {
+            let handled_counter = self.Batch_handled_counter.read();
+            assert(nonce <= handled_counter, Errors::BATCH_NOT_HANDLED);
         }
     }
 }

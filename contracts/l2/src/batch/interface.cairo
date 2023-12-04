@@ -15,8 +15,8 @@ trait IBatch<TState> {
     fn gas_oracle_selector(self: @TState) -> felt252;
     fn gas_required(self: @TState) -> u256;
     fn participant_required(self: @TState) -> u256;
-    fn counter(self: @TState) -> felt252;
-    fn handled_counter(self: @TState) -> felt252;
+    fn counter(self: @TState) -> u256;
+    fn handled_counter(self: @TState) -> u256;
     fn participant_counter(self: @TState) -> u256;
     fn gas_required_per_participant(self: @TState) -> u256;
     fn remaing_participant_to_close_batch(self: @TState) -> u256;
