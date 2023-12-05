@@ -1,14 +1,8 @@
 use starknet::ContractAddress;
 
-#[starknet::interface]
-trait IMintableToken<TStorage> {
-    fn permissionedMint(ref self: TStorage, account: ContractAddress, amount: u256);
-    fn permissionedBurn(ref self: TStorage, account: ContractAddress, amount: u256);
-}
-
 #[starknet::contract]
 mod TokenBridge {
-    use super::{ContractAddress, IMintableTokenDispatcher, IMintableTokenDispatcherTrait};
+    use super::{ContractAddress};
     use zeroable::Zeroable;
     use array::{ArrayTrait, ArrayDefault};
     use traits::{TryInto, Into};
@@ -18,12 +12,10 @@ mod TokenBridge {
         syscalls::send_message_to_l1_syscall
     };
     use openzeppelin::{
-        token::erc20::interface::{
-            IERC20CamelDispatcher, IERC20CamelDispatcherTrait
-        }
+        token::erc20::interface::{IERC20CamelDispatcher, IERC20CamelDispatcherTrait}
     };
     use pooling4626::token_bridge::interface::{ITokenBridge};
-
+    use pooling4626::token::interface::{IMintableTokenDispatcher, IMintableTokenDispatcherTrait};
 
     const ZERO_ADDRESS: felt252 = 'ZERO_ADDRESS';
     const ZERO_AMOUNT: felt252 = 'ZERO_AMOUNT';
@@ -60,7 +52,10 @@ mod TokenBridge {
         amount: u256
     }
 
-
+    /// @notice Constructor for the contract, initializing it with the L2 token and L1 bridge addresses.
+    /// @param l2_address The address of the L2 token contract.
+    /// @param l1_bridge The address of the L1 bridge contract.
+    /// @dev Ensures that neither the L2 token address nor the L1 bridge address is zero before initializing the contract state.
     #[constructor]
     fn constructor(ref self: ContractState, l2_address: ContractAddress, l1_bridge: felt252) {
         assert(l2_address.is_non_zero(), ZERO_ADDRESS);
@@ -71,14 +66,24 @@ mod TokenBridge {
 
     #[external(v0)]
     impl TokenBridgeImpl of ITokenBridge<ContractState> {
+        
+        /// @notice Retrieves the address of the L2 token contract.
+        /// @return The address of the L2 token contract.
         fn get_l2_token(self: @ContractState) -> ContractAddress {
             self._l2_address.read()
         }
 
+        /// @notice Retrieves the address of the L1 bridge contract.
+        /// @return The address of the L1 bridge contract.
         fn get_l1_bridge(self: @ContractState) -> felt252 {
             self._l1_bridge.read()
         }
 
+        /// @notice Initiates a withdrawal process from L2 to L1.
+        /// @param l1_recipient The address of the recipient on L1.
+        /// @param amount The amount to withdraw.
+        /// @dev Performs checks on the amount, L1 bridge, and L2 token addresses before proceeding with the withdrawal.
+        /// Verifies the caller's balance before and after burning the L2 tokens, and sends a message to L1.
         fn initiate_withdraw(ref self: ContractState, l1_recipient: felt252, amount: u256) {
             assert(amount != 0, ZERO_AMOUNT);
 
@@ -92,20 +97,16 @@ mod TokenBridge {
             // Call burn on l2_token contract and verify success.
 
             let caller_address = get_caller_address();
-            let balance_before = IERC20CamelDispatcher {
-                contract_address: l2_token
-            }.balanceOf(caller_address);
+            let balance_before = IERC20CamelDispatcher { contract_address: l2_token }
+                .balanceOf(caller_address);
 
             assert(amount <= balance_before, INSUFFICIENT_FUNDS);
 
-            let mintable_token = IMintableTokenDispatcher {
-                contract_address: l2_token
-            };
+            let mintable_token = IMintableTokenDispatcher { contract_address: l2_token };
             mintable_token.permissionedBurn(caller_address, amount);
 
-            let balance_after = IERC20CamelDispatcher {
-                contract_address: l2_token
-            }.balanceOf(caller_address);
+            let balance_after = IERC20CamelDispatcher { contract_address: l2_token }
+                .balanceOf(caller_address);
 
             assert(balance_after == balance_before - amount, INCORRECT_BALANCE);
 
@@ -128,16 +129,29 @@ mod TokenBridge {
                 );
         }
 
+
+        /// @notice Sets the address of the L2 token contract.
+        /// @param l2_token_address The address of the new L2 token contract.
+        /// @dev Ensures that the provided L2 token address is not zero before updating the contract state.
         fn set_l2_token(ref self: ContractState, l2_token_address: ContractAddress) {
             assert(l2_token_address.is_non_zero(), ZERO_ADDRESS);
             self._l2_address.write(l2_token_address);
         }
 
+        /// @notice Sets the address of the L1 bridge contract.
+        /// @param l1_bridge_address The address of the new L1 bridge contract.
+        /// @dev Ensures that the provided L1 bridge address is not zero before updating the contract state.
         fn set_l1_bridge(ref self: ContractState, l1_bridge_address: felt252) {
             assert(l1_bridge_address.is_non_zero(), ZERO_ADDRESS);
             self._l1_bridge.write(l1_bridge_address);
         }
 
+        /// @notice Handles the deposit process from L1 to L2.
+        /// @param from_address The address of the sender on L1.
+        /// @param account The L2 account receiving the deposit.
+        /// @param amount The amount being deposited.
+        /// @dev Ensures the validity of account, L1 bridge, and L2 token addresses before proceeding.
+        /// Checks that the deposit was initiated by the L1 bridge, mints L2 tokens, and verifies the updated balance.
         fn handle_deposit(
             ref self: ContractState, from_address: felt252, account: felt252, amount: u256
         ) {
@@ -154,18 +168,16 @@ mod TokenBridge {
             assert(l2_token.is_non_zero(), UNINITIALIZED_TOKEN);
 
             // Call mint on l2_token contract and verify success.
-            let balance_before = IERC20CamelDispatcher {
-                contract_address: l2_token
-            }.balanceOf(account.try_into().unwrap());
+            let balance_before = IERC20CamelDispatcher { contract_address: l2_token }
+                .balanceOf(account.try_into().unwrap());
 
             let expected_balance_after = balance_before + amount;
 
-            let mintable_token = IMintableTokenDispatcher {contract_address: l2_token};
+            let mintable_token = IMintableTokenDispatcher { contract_address: l2_token };
             mintable_token.permissionedMint(account.try_into().unwrap(), amount);
 
-            let balance_after = IERC20CamelDispatcher {
-                contract_address: l2_token
-            }.balanceOf(account.try_into().unwrap());
+            let balance_after = IERC20CamelDispatcher { contract_address: l2_token }
+                .balanceOf(account.try_into().unwrap());
             assert(balance_after == balance_before + amount, INCORRECT_BALANCE);
             self.emit(Event::DepositHandled(DepositHandled { account: account, amount: amount }));
         }

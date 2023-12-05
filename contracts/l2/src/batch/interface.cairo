@@ -1,10 +1,6 @@
 use starknet::ContractAddress;
 
-use openzeppelin::{
-        token::erc20::interface::{
-            IERC20CamelDispatcher
-        }
-    };
+use openzeppelin::{token::erc20::interface::{IERC20CamelDispatcher}};
 
 #[starknet::interface]
 trait IBatch<TState> {
@@ -23,7 +19,7 @@ trait IBatch<TState> {
     fn gas_unit_to_gas_fee(self: @TState, gas_unit: u256) -> u256;
     fn gas_fee_required_per_participant(self: @TState) -> u256;
 
-    
+
     fn set_gas_token(ref self: TState, gas_token: IERC20CamelDispatcher);
     fn set_relayer(ref self: TState, relayer: ContractAddress);
     fn set_fee_collector(ref self: TState, fees_collector: ContractAddress);

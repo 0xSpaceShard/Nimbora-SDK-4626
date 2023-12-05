@@ -28,7 +28,7 @@ impl ActionSendPartialEq of PartialEq<ActionSend> {
     fn eq(lhs: @ActionSend, rhs: @ActionSend) -> bool {
         let lhs_snap: ActionSend = *lhs;
         let rhs_snap: ActionSend = *rhs;
-        
+
         let val: felt252 = lhs_snap.into();
         val == rhs_snap.into()
     }
@@ -36,7 +36,7 @@ impl ActionSendPartialEq of PartialEq<ActionSend> {
     fn ne(lhs: @ActionSend, rhs: @ActionSend) -> bool {
         let lhs_snap: ActionSend = *lhs;
         let rhs_snap: ActionSend = *rhs;
-        
+
         let val: felt252 = lhs_snap.into();
         val != rhs_snap.into()
     }
@@ -79,7 +79,7 @@ impl ActionPartialEq of PartialEq<Action> {
     fn eq(lhs: @Action, rhs: @Action) -> bool {
         let lhs_snap: Action = *lhs;
         let rhs_snap: Action = *rhs;
-        
+
         let val: felt252 = lhs_snap.into();
         val == rhs_snap.into()
     }
@@ -87,7 +87,7 @@ impl ActionPartialEq of PartialEq<Action> {
     fn ne(lhs: @Action, rhs: @Action) -> bool {
         let lhs_snap: Action = *lhs;
         let rhs_snap: Action = *rhs;
-        
+
         let val: felt252 = lhs_snap.into();
         val != rhs_snap.into()
     }
@@ -126,7 +126,7 @@ impl ActionIntoFelt252 of Into<Action, felt252> {
 }
 
 
-impl ActionHashTuppleOneImpl of hash::LegacyHash::<(u256, Action, felt252)> {
+impl ActionHashTuppleOneImpl of hash::LegacyHash<(u256, Action, felt252)> {
     fn hash(state: felt252, value: (u256, Action, felt252)) -> felt252 {
         let (x, y, z) = value;
         let y_felt = y.into();
@@ -134,7 +134,7 @@ impl ActionHashTuppleOneImpl of hash::LegacyHash::<(u256, Action, felt252)> {
     }
 }
 
-impl ActionHashTuppleTwoImpl of hash::LegacyHash::<(u256, Action, ContractAddress)> {
+impl ActionHashTuppleTwoImpl of hash::LegacyHash<(u256, Action, ContractAddress)> {
     fn hash(state: felt252, value: (u256, Action, ContractAddress)) -> felt252 {
         let (x, y, z) = value;
         let y_felt = y.into();
@@ -142,7 +142,7 @@ impl ActionHashTuppleTwoImpl of hash::LegacyHash::<(u256, Action, ContractAddres
     }
 }
 
-impl ActionHashTuppleThreeImpl of hash::LegacyHash::<(u256, Action)> {
+impl ActionHashTuppleThreeImpl of hash::LegacyHash<(u256, Action)> {
     fn hash(state: felt252, value: (u256, Action)) -> felt252 {
         let (x, y) = value;
         let y_felt = y.into();
@@ -150,5 +150,9 @@ impl ActionHashTuppleThreeImpl of hash::LegacyHash::<(u256, Action)> {
     }
 }
 
-
+impl ActionHashTuppleFourthImpl of hash::LegacyHash<Action> {
+    fn hash(state: felt252, value: Action) -> felt252 {
+        hash::LegacyHash::<felt252>::hash(state, value.into())
+    }
+}
 
