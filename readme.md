@@ -114,3 +114,13 @@ Add other scripts in the "scripts" repository and interact with your contracts w
 ```sh
 yarn hardhat run <scriptName>
 ```
+
+
+### Choose a 4626 Strategy
+
+
+You can access all the 4626 ethereum yields from this link
+https://erc4626.info/vaults/
+
+Each yield has its own particularity, can be pause, can have entry/exit fees, redeem can be blocked ...
+Make sure to adapt pooling contracts to manage all of those cases! 
