@@ -1,3 +1,6 @@
+![Logo](public/logo.png)
+
+
 # Nimbora Toolkit
 
 This repository offers a combination of Cairo and Solidity code designed to create a DeFi pooling system. It enables interaction with Ethereum's 4626 standardized yield strategies from Starknet.
@@ -116,11 +119,50 @@ yarn hardhat run <scriptName>
 ```
 
 
-### Choose a 4626 Strategy
+### Get Started
 
+## Choose a 4626 Strategy
 
 You can access all the 4626 ethereum yields from this link
 https://erc4626.info/vaults/
 
-Each yield has its own particularity, can be pause, can have entry/exit fees, redeem can be blocked ...
+## Interact with the vault on L1
+
+The PoolingHandler handler is already designed to interacty with a 4626 standardised vault but each yield has its own particularity, can be pause, can have entry/exit fees, redeem can be blocked ...
 Make sure to adapt pooling contracts to manage all of those cases! 
+
+Exemples: 
+
+- Lending pool redeem can be block when the pool utilization is full/almost full. In this case you may want to bridge back funds and give an additional argument in the data payload sent to L2 : "poolAvailable". Then L2 contracts won't be able to send batch until pool utilization goes down.
+
+event BatchProcessed(
+        uint256 nonce,
+        uint256 amountUnderOut,
+        uint256 amountYieldOut,
+        bool poolAvailable
+    );
+
+- Yield aggregators can set withdrawal fee when too many people want to withdraw in the same period. In In this case you'll have to set additional parameters such as the slippage and a threshold on the time (since you can always delay the batch execution waiting for fees to go lower).
+
+Also most of strategies do not exactly fit to the 4626 standard and can add additional arguments such as yearn vaults V2, you'll probably have to change the way PoolingHandler contract interact with the yield.
+
+function withdraw(
+    uint256 assets,
+    address receiver,
+    address owner,
+    uint256 max_loss,
+    address[] memory strategies
+) external returns (uint256);
+
+
+max_loss and strategies are two optional arguments but may be important to specify. 
+
+
+## L1 <> L2 interaction
+
+If you modified the PoolingHanlder logic and the messaging data payload, make sur to modify your L2 contract in consequence. 
+
+Since the tokens available in official bridge are limited, you'll probably have to deploy your own token and bridge for the yield bearing share token of the strategy. You can use mocks in this repository.
+
+
+
